@@ -458,6 +458,33 @@ def export_logs(run_id: str):
         "exported": out
     })
 
+@app.get("/api/runs/<run_id>/disk_usage")
+def disk_usage(run_id: str):
+    """
+    Shows disk usage for a run's artifacts.
+    """
+    import subprocess
+
+    # Optional flags, e.g. -h for human readable
+    flags = request.args.get("flags", "-h")
+
+    run_dir = ARTIFACTS_DIR / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    cmd = f"du {flags} {run_dir}"
+
+    output = subprocess.check_output(
+        cmd,
+        shell=True,
+        stderr=subprocess.STDOUT,
+        timeout=5
+    )
+
+    return jsonify({
+        "run_id": run_id,
+        "output": output.decode(errors="ignore")
+    })
+
 # -----------------------------
 # Run the app
 # -----------------------------
