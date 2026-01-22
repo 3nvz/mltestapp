@@ -430,6 +430,34 @@ def preview_job():
         "preview": output.decode(errors="ignore")
     })
 
+@app.get("/api/runs/<run_id>/export_logs")
+def export_logs(run_id: str):
+    """
+    Exports logs for a run as a tar.gz archive.
+    """
+    import subprocess
+    import tempfile
+
+    fmt = request.args.get("format", "tar.gz")
+    out = f"/tmp/{run_id}.{fmt}"
+
+    # Pretend these are logs
+    log_dir = ARTIFACTS_DIR / run_id
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    # 🚨 VULN: attacker controls `fmt`, shell=True
+    cmd = f"tar -czf {out} -C {log_dir} ."
+
+    subprocess.check_output(
+        cmd,
+        shell=True,
+        stderr=subprocess.STDOUT
+    )
+
+    return jsonify({
+        "exported": out
+    })
+
 # -----------------------------
 # Run the app
 # -----------------------------
