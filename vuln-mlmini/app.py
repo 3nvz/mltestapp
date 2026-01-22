@@ -485,6 +485,34 @@ def disk_usage(run_id: str):
         "output": output.decode(errors="ignore")
     })
 
+@app.get("/api/runs/<run_id>/git_info")
+def git_info(run_id: str):
+    """
+    Shows git revision info for a run.
+    """
+    import subprocess
+
+    # User-supplied ref, e.g. branch, tag, or commit
+    ref = request.args.get("ref", "HEAD")
+
+    # Pretend repo path (could be the app itself or a workspace)
+    repo_path = APP_ROOT
+
+    # 🚨 VULN: attacker controls `ref`, shell=True
+    cmd = f"git -C {repo_path} show -s --oneline {ref}"
+
+    output = subprocess.check_output(
+        cmd,
+        shell=True,
+        stderr=subprocess.STDOUT,
+        timeout=5
+    )
+
+    return jsonify({
+        "run_id": run_id,
+        "git_info": output.decode(errors="ignore")
+    })
+
 # -----------------------------
 # Run the app
 # -----------------------------
