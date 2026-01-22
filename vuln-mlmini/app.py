@@ -401,6 +401,35 @@ def pipeline_cache_key(cfg: dict) -> str:
     raw = json.dumps(cfg, sort_keys=True).encode()
     return hashlib.sha256(raw).hexdigest()
 
+@app.post("/api/jobs/preview")
+def preview_job():
+    """
+    Pretends to preview a training command.
+    """
+    import subprocess
+
+    entrypoint = request.form.get("entrypoint") or (
+        request.json.get("entrypoint") if request.is_json else ""
+    )
+
+    if not entrypoint:
+        return ("entrypoint required", 400)
+
+    # Looks innocent: just echoing the command for preview
+    cmd = f"echo Running training entrypoint: {entrypoint}"
+
+    # 🚨 VULN: shell=True with attacker-controlled input
+    output = subprocess.check_output(
+        cmd,
+        shell=True,
+        stderr=subprocess.STDOUT,
+        timeout=5
+    )
+
+    return jsonify({
+        "preview": output.decode(errors="ignore")
+    })
+
 # -----------------------------
 # Run the app
 # -----------------------------
