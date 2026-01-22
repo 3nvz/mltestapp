@@ -274,6 +274,42 @@ def webhook_test():
         "body_preview": resp.text[:2000],
     })
 
+@app.post("/api/runs/<run_id>/load_evaluator")
+def load_evaluator(run_id: str):
+    """
+    Intentional vuln: arbitrary code execution via dynamic import.
+    Loads and executes attacker-controlled Python code.
+    """
+    plugin_path = request.form.get("path") or (
+        request.json.get("path") if request.is_json else ""
+    )
+    entrypoint = request.form.get("entrypoint", "evaluate")
+
+    if not plugin_path:
+        return ("path required", 400)
+
+    # VULN: attacker controls filesystem path
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("user_plugin", plugin_path)
+    module = importlib.util.module_from_spec(spec)
+
+    # 🚨 RCE happens here
+    spec.loader.exec_module(module)
+
+    if not hasattr(module, entrypoint):
+        return ("entrypoint not found", 400)
+
+    fn = getattr(module, entrypoint)
+
+    # Execute user code
+    result = fn(run_id=run_id)
+
+    return jsonify({
+        "status": "evaluator executed",
+        "result": result
+    })
+
 # -----------------------------
 # Run the app
 # -----------------------------
