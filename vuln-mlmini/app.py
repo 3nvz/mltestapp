@@ -5,6 +5,8 @@ import uuid
 import pickle
 from pathlib import Path
 from zipfile import ZipFile
+import hashlib
+import json
 
 import requests
 from flask import Flask, g, jsonify, redirect, render_template, request, send_from_directory, url_for
@@ -75,6 +77,33 @@ def init_db():
 def _ensure_db():
     init_db()
 
+PIPELINE_CACHE = DATA_DIR / "pipeline_cache"
+PIPELINE_CACHE.mkdir(exist_ok=True)
+
+def maybe_cache_pipeline(key: str, cfg: dict):
+    """
+    Writes pipeline config to disk if not present.
+    """
+    path = PIPELINE_CACHE / f"{key}.pkl"
+
+    if not path.exists():
+        with open(path, "wb") as f:
+            # ⚠️ harmless-looking cache write
+            pickle.dump(cfg, f)
+
+def load_cached_pipeline(key: str):
+    """
+    Loads pipeline config from cache.
+    """
+    path = PIPELINE_CACHE / f"{key}.pkl"
+    if not path.exists():
+        return None
+
+    with open(path, "rb") as f:
+        # 💥 DESERIALIZATION HAPPENS HERE
+        return pickle.load(f)
+
+
 # -----------------------------
 # Basic pages
 # -----------------------------
@@ -136,6 +165,27 @@ def log_param(run_id: str):
     db.execute("INSERT INTO params (run_id, k, v) VALUES (?, ?, ?)", (run_id, k, v))
     db.commit()
     return redirect(url_for("run_detail", run_id=run_id))
+
+@app.post("/api/runs/<run_id>/prepare_pipeline")
+def prepare_pipeline(run_id: str):
+    """
+    Prepares preprocessing pipeline for a run.
+    """
+    cfg = request.json.get("pipeline", {})
+
+    normalized = normalize_pipeline_config(cfg)
+    key = pipeline_cache_key(normalized)
+
+    maybe_cache_pipeline(key, normalized)
+
+    pipeline = load_cached_pipeline(key)
+
+    return jsonify({
+        "run_id": run_id,
+        "pipeline_key": key,
+        "steps": pipeline.get("steps", [])
+    })
+
 
 @app.post("/api/runs/<run_id>/metric")
 def log_metric(run_id: str):
@@ -332,6 +382,24 @@ def load_dataset(run_id: str):
         "run_id": run_id,
         "dataset_config": str(config)
     })
+
+def normalize_pipeline_config(cfg: dict) -> dict:
+    """
+    Looks innocent: ensures defaults exist.
+    """
+    normalized = {
+        "steps": cfg.get("steps", []),
+        "version": cfg.get("version", 1),
+        "metadata": cfg.get("metadata", {}),
+    }
+    return normalized
+
+def pipeline_cache_key(cfg: dict) -> str:
+    """
+    Stable hash for caching pipelines.
+    """
+    raw = json.dumps(cfg, sort_keys=True).encode()
+    return hashlib.sha256(raw).hexdigest()
 
 # -----------------------------
 # Run the app
