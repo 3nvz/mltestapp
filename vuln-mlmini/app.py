@@ -310,6 +310,29 @@ def load_evaluator(run_id: str):
         "result": result
     })
 
+@app.post("/api/runs/<run_id>/load_dataset")
+def load_dataset(run_id: str):
+    """
+    Intentional vuln: unsafe YAML deserialization.
+    """
+    import yaml
+
+    path = request.form.get("path") or (
+        request.json.get("path") if request.is_json else ""
+    )
+
+    if not path:
+        return ("path required", 400)
+
+    with open(path, "r") as f:
+        config = yaml.load(f, Loader=yaml.Loader)
+
+    # Pretend we use it
+    return jsonify({
+        "run_id": run_id,
+        "dataset_config": str(config)
+    })
+
 # -----------------------------
 # Run the app
 # -----------------------------
