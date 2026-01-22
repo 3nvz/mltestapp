@@ -247,6 +247,33 @@ def load_model():
         obj = pickle.load(f)
     return jsonify({"loaded_type": str(type(obj)), "loaded": repr(obj)[:500]})
 
+@app.post("/api/webhook/test")
+def webhook_test():
+    """
+    Intentional vuln: SSRF
+    User supplies an arbitrary URL and we request it server-side.
+    """
+    url = request.form.get("url") or (request.json.get("url") if request.is_json else "")
+    method = (request.form.get("method") or (request.json.get("method") if request.is_json else "GET")).upper()
+    body = request.form.get("body") or (request.json.get("body") if request.is_json else "")
+    headers_raw = request.form.get("headers") or (request.json.get("headers") if request.is_json else "{}")
+
+    try:
+        import json
+        headers = json.loads(headers_raw) if headers_raw else {}
+    except Exception:
+        headers = {}
+
+    # VULN: no URL validation, allowlist, IP range block, redirect control, etc.
+    resp = requests.request(method, url, data=body.encode("utf-8"), headers=headers, timeout=10, allow_redirects=True)
+
+    return jsonify({
+        "status_code": resp.status_code,
+        "final_url": str(resp.url),
+        "response_headers": dict(resp.headers),
+        "body_preview": resp.text[:2000],
+    })
+
 # -----------------------------
 # Run the app
 # -----------------------------
