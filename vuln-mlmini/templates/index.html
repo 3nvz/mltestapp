@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Vuln-MLMini</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 980px; margin: 24px auto; }
+      .box { border: 1px solid #ddd; padding: 16px; border-radius: 10px; margin-bottom: 16px; }
+      code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px; }
+      input, select { padding: 6px 8px; }
+      button { padding: 6px 10px; cursor: pointer; }
+      a { text-decoration: none; }
+    </style>
+  </head>
+  <body>
+    <h1>Vuln-MLMini</h1>
+    <p>Intentionally vulnerable mini ML tracking app.</p>
+
+    <div class="box">
+      <h2>Create experiment</h2>
+      <form method="post" action="/api/experiments">
+        <input name="name" placeholder="experiment name" required />
+        <button type="submit">Create</button>
+      </form>
+    </div>
+
+    <div class="box">
+      <h2>Create run</h2>
+      <form method="post" action="/api/runs">
+        <select name="experiment_id" required>
+          {% for e in experiments %}
+            <option value="{{ e['id'] }}">{{ e['name'] }} ({{ e['id'][:8] }})</option>
+          {% endfor %}
+        </select>
+        <input name="name" placeholder="run name (optional)" />
+        <button type="submit">Create run</button>
+      </form>
+      {% if experiments|length == 0 %}
+        <p><em>Create an experiment first.</em></p>
+      {% endif %}
+    </div>
+
+    <div class="box">
+      <h2>Recent runs</h2>
+      <ul>
+        {% for r in runs %}
+          <li>
+            <a href="/runs/{{ r['id'] }}">{{ r['id'][:8] }}</a>
+            — {{ r['status'] }} — exp {{ r['experiment_id'][:8] }}
+            {% if r['name'] %} — {{ r['name'] }}{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="box">
+      <h2>Model registry demo</h2>
+      <form method="post" action="/api/models/save">
+        <input name="name" placeholder="filename e.g. demo.pkl" value="demo-model.pkl"/>
+        <input name="payload" placeholder="payload string" value="hello"/>
+        <button type="submit">Save model</button>
+      </form>
+      <p>Load model (unsafe): <code>GET /api/models/load?path=...</code></p>
+    </div>
+  </body>
+</html>

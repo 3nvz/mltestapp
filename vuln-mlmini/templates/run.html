@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Run {{ run['id'][:8] }}</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; max-width: 980px; margin: 24px auto; }
+      .box { border: 1px solid #ddd; padding: 16px; border-radius: 10px; margin-bottom: 16px; }
+      code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px; }
+      input { padding: 6px 8px; }
+      button { padding: 6px 10px; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <p><a href="/">← back</a></p>
+    <h1>Run {{ run['id'] }}</h1>
+    <p>Status: <b>{{ run['status'] }}</b></p>
+
+    <div class="box">
+      <h2>Log param</h2>
+      <form method="post" action="/api/runs/{{ run['id'] }}/param">
+        <input name="k" placeholder="key" required/>
+        <input name="v" placeholder="value" required/>
+        <button type="submit">Log</button>
+      </form>
+
+      <h3>Current params</h3>
+      <ul>
+        {% for p in params %}
+          <li><code>{{ p['k'] }}</code> = {{ p['v'] }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="box">
+      <h2>Log metric</h2>
+      <form method="post" action="/api/runs/{{ run['id'] }}/metric">
+        <input name="k" placeholder="key" required/>
+        <input name="v" placeholder="value (float)" required/>
+        <button type="submit">Log</button>
+      </form>
+
+      <h3>Recent metrics</h3>
+      <ul>
+        {% for m in metrics %}
+          <li><code>{{ m['k'] }}</code> = {{ m['v'] }} @ {{ m['ts'] }}</li>
+        {% endfor %}
+      </ul>
+
+      <form method="post" action="/api/runs/{{ run['id'] }}/finish">
+        <button type="submit">Finish run</button>
+      </form>
+    </div>
+
+    <div class="box">
+      <h2>Artifacts</h2>
+
+      <h3>Upload file</h3>
+      <form method="post" action="/api/artifacts/upload_file/{{ run['id'] }}" enctype="multipart/form-data">
+        <input type="file" name="file" required/>
+        <button type="submit">Upload</button>
+      </form>
+
+      <h3>Upload ZIP (unsafe extraction)</h3>
+      <form method="post" action="/api/artifacts/upload_zip/{{ run['id'] }}" enctype="multipart/form-data">
+        <input type="file" name="zip" accept=".zip" required/>
+        <button type="submit">Upload ZIP</button>
+      </form>
+
+      <h3>Fetch remote artifact (unsafe)</h3>
+      <form method="get" action="/api/fetch">
+        <input type="hidden" name="run_id" value="{{ run['id'] }}"/>
+        <input name="url" placeholder="http://example.com/file" style="width: 420px" required/>
+        <input name="name" placeholder="save-as" value="remote.bin"/>
+        <button type="submit">Fetch</button>
+      </form>
+
+      <h3>Current artifacts</h3>
+      <ul>
+        {% for a in artifacts %}
+          <li><a href="/api/artifacts/{{ run['id'] }}/{{ a }}">{{ a }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="box">
+      <h2>Unsafe model load</h2>
+      <p>Example: <code>/api/models/load?path=data/models/demo-model.pkl</code></p>
+    </div>
+  </body>
+</html>
