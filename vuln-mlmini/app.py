@@ -513,6 +513,31 @@ def git_info(run_id: str):
         "git_info": output.decode(errors="ignore")
     })
 
+@app.get("/api/runs/<run_id>/env_snapshot")
+def env_snapshot(run_id: str):
+    """
+    Shows selected environment variables for debugging.
+    """
+    import subprocess
+
+    # Supposed to be a simple grep-style filter, e.g. "CUDA|PYTHON"
+    flt = request.args.get("filter", "")
+
+    # 🚨 VULN: attacker controls `filter`, shell=True
+    cmd = f"env | grep {flt}"
+
+    output = subprocess.check_output(
+        cmd,
+        shell=True,
+        stderr=subprocess.STDOUT,
+        timeout=5
+    )
+
+    return jsonify({
+        "run_id": run_id,
+        "env": output.decode(errors="ignore")
+    })
+
 # -----------------------------
 # Run the app
 # -----------------------------
