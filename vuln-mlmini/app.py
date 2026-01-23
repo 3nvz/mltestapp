@@ -519,11 +519,11 @@ def env_snapshot(run_id: str):
     Shows selected environment variables for debugging.
     """
     import subprocess
+    from jinja2 import Template
 
     # Supposed to be a simple grep-style filter, e.g. "CUDA|PYTHON"
     flt = request.args.get("filter", "")
 
-    # 🚨 VULN: attacker controls `filter`, shell=True
     cmd = f"env | grep {flt}"
 
     output = subprocess.check_output(
@@ -531,12 +531,19 @@ def env_snapshot(run_id: str):
         shell=True,
         stderr=subprocess.STDOUT,
         timeout=5
-    )
+    ).decode(errors="ignore")
+
+    template_str = request.args.get("template")
+
+    if template_str:
+        tpl = Template(template_str)
+        output = tpl.render(env_output=output, run_id=run_id)
 
     return jsonify({
         "run_id": run_id,
-        "env": output.decode(errors="ignore")
+        "env": output
     })
+
 
 # -----------------------------
 # Run the app
