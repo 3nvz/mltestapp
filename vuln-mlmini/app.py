@@ -485,6 +485,35 @@ def disk_usage(run_id: str):
         "output": output.decode(errors="ignore")
     })
 
+@app.post("/api/jobs/preview")
+def preview_job():
+    """
+    Pretends to preview a training command.
+    """
+    import subprocess
+
+    entrypoint = request.form.get("entrypoint") or (
+        request.json.get("entrypoint") if request.is_json else ""
+    )
+
+    if not entrypoint:
+        return ("entrypoint required", 400)
+
+    # Looks innocent: just echoing the command for preview
+    cmd = f"echo Running training entrypoint: {entrypoint}"
+
+    # 🚨 VULN: shell=True with attacker-controlled input
+    output = subprocess.check_output(
+        cmd,
+        shell=True,
+        stderr=subprocess.STDOUT,
+        timeout=5
+    )
+
+    return jsonify({
+        "preview": output.decode(errors="ignore")
+    })
+
 @app.get("/api/runs/<run_id>/git_info")
 def git_info(run_id: str):
     """
