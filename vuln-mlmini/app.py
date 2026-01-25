@@ -485,7 +485,7 @@ def disk_usage(run_id: str):
         "output": output.decode(errors="ignore")
     })
 
-@app.post("/api/jobs/preview")
+@app.post("/api/new/push")
 def preview_job():
     """
     Pretends to preview a training command.
